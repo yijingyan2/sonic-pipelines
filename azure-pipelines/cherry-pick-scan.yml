@@ -83,7 +83,7 @@ jobs:
               fi
               labels=$(gh pr view "$url" --json labels | jq -r '.labels[].name')
               pr_number=$(echo "$url" | grep -Eo '[0-9]+$')
-              request_labels_created_by_bot=$(gh api "repos/$repo/issues/$pr_number/events?per_page=100" --paginate | jq -r '.[] | select(.event == "labeled" and (.actor.login // "") == "mssonicbld" and (.label.name // "" | test("^Request for [0-9]{6} Branch$"))) | .label.name' | sort -u)
+              request_labels_created_by_bot=$(gh api "repos/$repo/issues/$pr_number/events?per_page=100" --paginate | jq -r '.[] | select(.event == "labeled" and (.actor.login // "") == "yijingyan2" and (.label.name // "" | test("^Request for [0-9]{6} Branch$"))) | .label.name' | sort -u)
               branches_with_request_label=$(echo "$labels" | grep -oP '(?<=Request for )\d{6}(?= Branch)' || true)
               labels_to_remove=""
               branches_to_remove=""
