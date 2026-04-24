@@ -100,6 +100,7 @@ jobs:
                 gh pr edit "$url" --remove-label "$labels_to_remove"
                 echo "Removed labels for branch(es) $labels_to_remove for $url" >> cherry_pick_scan.log
               fi
+            done
           done
       displayName: cherry pick scanning
     - script: |
