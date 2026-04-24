@@ -56,8 +56,9 @@ jobs:
               pr=$(echo $prs | jq .[$i])
               url=$(echo $pr | jq .url -r)
               body=$(echo $pr | jq .body -r)
+              body_no_comments=$(echo "$body" | awk 'BEGIN{in_comment=0} /<!--/{in_comment=1} !in_comment{print} /-->/{in_comment=0}')
               labels=$(echo $pr | jq .labels[].name -r)
-              backport_branches=$(echo "$body" | grep -oP '(?<=- \[x\] )\d{6}' || true)
+              backport_branches=$(echo "$body_no_comments" | grep -oP '(?<=- \[x\] )\d{6}' || true)
               labels_to_add=""
               branches_to_add=""
               branches_already_added=""
