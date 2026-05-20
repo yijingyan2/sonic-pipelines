@@ -37,13 +37,21 @@ check_conflict(){
     git status
     git checkout -b $PR_BASE_BRANCH --track head/$PR_BASE_BRANCH
     git status
+    contains_submodule=""
     if [[ "$PR_MERGED" == "true" ]];then
         git reset $PR_COMMIT_SHA --hard
+        contains_submodule=$(git show HEAD | grep -Eo "^\+Subproject commit ")
         git reset HEAD~
         git add . -f
     else
         git fetch head +refs/pull/$PR_NUMBER/merge:refs/remotes/pull/$PR_NUMBER/merge
+        contains_submodule=$(git log head/$PR_BASE_BRANCH..$PR_COMMIT_SHA -p | grep -Eo "^\+Subproject commit ")
         git merge pull/$PR_NUMBER/merge --squash || { echo "PR is Out of Date!"; return 253; }
+    fi
+    if [ -n "$contains_submodule" ]; then
+        echo "PR contains submodule change"
+        gh pr comment $PR_URL --body "Auto cherry pick don't support submodule update. Please manually cherry pick!"
+        return 251
     fi
     content=$(gh pr view $PR_URL --json title,body)
     title=$(echo "$content" | jq .title -r)
