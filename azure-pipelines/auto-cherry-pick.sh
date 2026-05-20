@@ -40,12 +40,16 @@ check_conflict(){
     contains_submodule=""
     if [[ "$PR_MERGED" == "true" ]];then
         git reset $PR_COMMIT_SHA --hard
-        contains_submodule=$(git show HEAD | grep -Eo "^\+Subproject commit ")
+        if git show HEAD | grep -Eo "^\+Subproject commit "; then
+            contains_submodule="true"
+        fi
         git reset HEAD~
         git add . -f
     else
         git fetch head +refs/pull/$PR_NUMBER/merge:refs/remotes/pull/$PR_NUMBER/merge
-        contains_submodule=$(git log head/$PR_BASE_BRANCH..$PR_COMMIT_SHA -p | grep -Eo "^\+Subproject commit ")
+        if git log head/$PR_BASE_BRANCH..$PR_COMMIT_SHA -p | grep -Eo "^\+Subproject commit "; then
+            contains_submodule="true"
+        fi
         git merge pull/$PR_NUMBER/merge --squash || { echo "PR is Out of Date!"; return 253; }
     fi
     if [ -n "$contains_submodule" ]; then
