@@ -1,0 +1,175 @@
+# Trigger submodule pipelines in dependency-level order against the commit pinned by
+# sonic-buildimage. Level 0 runs first; only after every Level-0 pipeline succeeds does
+# Level 1 start, then Level 2, and so on.
+#
+# Finds the latest successful run of the sonic-buildimage official pipeline, reads the
+# commit it built, then for each level resolves every submodule SHA pinned at that commit
+# and queues the matching pipeline, waiting for the whole level to finish before the next.
+
+trigger: none
+pr: none
+
+parameters:
+- name: targetProject
+  type: string
+  default: build
+- name: VSbBuildPipelineId
+  type: string
+  default: '142'
+- name: levels
+  type: object
+  default:
+  - name: level0
+    dependsOn: ResolveCommit
+    sleepTime: 1800
+    pipelines:
+      common_libs: '465'
+      src/sonic-dash-api: '1318'
+  - name: level1
+    dependsOn: level0
+    sleepTime: 5400
+    pipelines:
+      platform/vpp: '1016'
+      src/sonic-swss-common: '9'
+      src/sonic-platform-common: '42'
+      src/sonic-platform-daemons: '41'
+      src/sonic-host-services: '935'
+      src/sonic-mgmt-framework: '130'
+      src/sonic-mgmt-common: '127'
+      src/sonic-snmpagent: '106'
+      src/sonic-dbsyncd: '110'
+  - name: level2
+    dependsOn: level1
+    sleepTime: 10800
+    pipelines:
+      src/sonic-sairedis: '106'
+      src/sonic-gnmi: '934'
+      src/sonic-utilities: '55'
+      src/sonic-bmp: '1565'
+      src/sonic-dash-ha: '2351'
+      src/sonic-linkmgrd: '388'
+      src/sonic-dhcpmon: '901'
+      src/sonic-dhcp-relay: '487'
+      src/sonic-stp: '84'
+      src/sonic-wpa-supplicant: '5'
+  - name: level3
+    dependsOn: level2
+    sleepTime: 12600
+    pipelines:
+      src/sonic-swss: '15'
+
+stages:
+- stage: ResolveCommit
+  jobs:
+  - job: Resolve
+    pool: sonic-ubuntu-1c
+    steps:
+    - checkout: none
+    - bash: |
+        set -e
+        command -v az >/dev/null || curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+      displayName: 'Install Azure CLI'
+    - task: AzureCLI@2
+      name: resolve
+      displayName: 'Resolve sonic-buildimage commit'
+      inputs:
+        azureSubscription: 'mssonic-automation-umi'
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          set -xe
+          az extension add --name azure-devops --yes
+          export AZURE_DEVOPS_EXT_PAT=$(az account get-access-token \
+            --resource 499b84ac-1321-427f-aa17-267ca6975798 --query accessToken -o tsv)
+          SHA=$(az pipelines runs list \
+            --pipeline-ids ${{ parameters.VSbBuildPipelineId }} \
+            --project ${{ parameters.targetProject }} \
+            --organization "$(System.CollectionUri)" \
+            --branch refs/heads/master \
+            --result succeeded \
+            --status completed \
+            --top 1 \
+            --query-order FinishTimeDesc \
+            --query "[0].sourceVersion" -o tsv)
+          if [ -z "$SHA" ]; then
+            echo "No successful run found for pipeline ${{ parameters.VSbBuildPipelineId }}"
+            exit 1
+          fi
+          echo "sonic-buildimage commit from latest successful run: $SHA"
+          echo "##vso[task.setvariable variable=buildimageSha;isOutput=true]$SHA"
+- ${{ each level in parameters.levels }}:
+  - stage: ${{ level.name }}
+    dependsOn:
+    - ResolveCommit
+    - ${{ level.dependsOn }}
+    variables:
+      buildimageSha: $[ stageDependencies.ResolveCommit.Resolve.outputs['resolve.buildimageSha'] ]
+    jobs:
+    - ${{ each pipeline in level.pipelines }}:
+      - job:
+        pool: sonic-ubuntu-1c
+        displayName: '${{ pipeline.key }}'
+        timeoutInMinutes: 240
+        steps:
+        - checkout: none
+        - bash: |
+            set -e
+            command -v az >/dev/null || curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+          displayName: 'Install Azure CLI'
+        - task: AzureCLI@2
+          displayName: 'Trigger ${{ pipeline.key }} pipeline'
+          inputs:
+            azureSubscription: 'mssonic-automation-umi'
+            scriptType: bash
+            scriptLocation: inlineScript
+            inlineScript: |
+              set -e
+              az extension add --name azure-devops --yes
+              export AZURE_DEVOPS_EXT_PAT=$(az account get-access-token \
+                --resource 499b84ac-1321-427f-aa17-267ca6975798 --query accessToken -o tsv)
+              git clone https://github.com/sonic-net/sonic-buildimage buildimage
+              cd buildimage
+              git checkout $(buildimageSha)
+              if [ "${{ pipeline.key }}" = "common_libs" ]; then
+                SHA=$(git rev-parse HEAD)
+              else
+                SHA=$(git ls-tree HEAD '${{ pipeline.key }}' | awk '{print $3}')
+              fi
+              if [ -z "$SHA" ]; then
+                echo "No pinned commit found for ${{ pipeline.key }}, skipping"
+                exit 0
+              fi
+              echo "Pinned commit for ${{ pipeline.key }}: $SHA"
+              run_pipeline() {
+                RUN_ID=$(az pipelines run \
+                  --id ${{ pipeline.value }} \
+                  --project ${{ parameters.targetProject }} \
+                  --commit-id $SHA \
+                  --branch refs/heads/master \
+                  --organization "$(System.CollectionUri)" \
+                  --query id -o tsv)
+                if [ -z "$RUN_ID" ]; then
+                  echo "Failed to queue ${{ pipeline.key }} (pipeline ${{ pipeline.value }}) at $SHA"
+                  return 1
+                fi
+                URL="$(System.CollectionUri)${{ parameters.targetProject }}/_build/results?buildId=$RUN_ID&view=results"
+                echo "Queued run $RUN_ID for ${{ pipeline.key }}: $URL, waiting ${{ level.sleepTime }}s before polling"
+                sleep ${{ level.sleepTime }}
+                while true; do
+                  ST=$(az pipelines runs show --id $RUN_ID --project ${{ parameters.targetProject }} \
+                    --organization "$(System.CollectionUri)" --query status -o tsv)
+                  if [ "$ST" = "completed" ]; then break; fi
+                  sleep 600
+                done
+                RESULT=$(az pipelines runs show --id $RUN_ID --project ${{ parameters.targetProject }} \
+                  --organization "$(System.CollectionUri)" --query result -o tsv)
+                echo "${{ pipeline.key }} run $RUN_ID result: $RESULT"
+                [ "$RESULT" = "succeeded" ] || [ "$RESULT" = "partiallySucceeded" ]
+              }
+              if ! run_pipeline; then
+                echo "First attempt failed for ${{ pipeline.key }}, retrying once"
+                if ! run_pipeline; then
+                  echo "Retry failed for ${{ pipeline.key }}, exiting"
+                  exit 1
+                fi
+              fi
