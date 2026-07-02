@@ -39,7 +39,12 @@ check_conflict(){
     git status
     contains_submodule=""
     if [[ "$PR_MERGED" == "true" ]];then
-        git reset $PR_COMMIT_SHA --hard
+        # PR_COMMIT_SHA from the webhook (merge_commit_sha) is GitHub's ephemeral
+        # test-merge object, which is deleted after a squash merge. Fetch the real
+        # post-merge commit from the GitHub API instead.
+        REAL_SHA=$(gh api repos/$ORG/$REPO/pulls/$PR_NUMBER --jq .merge_commit_sha)
+        git fetch head $REAL_SHA
+        git reset $REAL_SHA --hard
         if git show HEAD | grep -Eo "^\+Subproject commit "; then
             contains_submodule="true"
         fi
