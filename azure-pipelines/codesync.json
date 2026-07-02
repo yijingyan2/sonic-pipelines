@@ -6,7 +6,7 @@
     "202412": "src/sonic-utilities src/sonic-swss src/sonic-platform-common src/sonic-platform-daemons src/sonic-sairedis src/sonic-linux-kernel src/sonic-swss-common src/sonic-gnmi",
     "202503": "src/sonic-utilities src/sonic-swss src/sonic-platform-common src/sonic-platform-daemons src/sonic-sairedis src/sonic-linux-kernel",
     "202506": "src/sonic-utilities src/sonic-swss src/sonic-platform-common src/sonic-platform-daemons src/sonic-sairedis src/sonic-swss-common src/sonic-dash-api src/sonic-dash-ha src/sonic-host-services src/sonic-gnmi",
-    "202512": "src/sonic-utilities",
+    "202512": "src/sonic-utilities src/sonic-linux-kernel",
     "202603": "src/sonic-utilities src/sonic-sairedis",
     "202511_azd": "src/sonic-gnmi src/sonic-swss src/sonic-swss-common src/sonic-utilities",
     "202606": "src/sonic-swss src/sonic-swss-common src/sonic-utilities src/sonic-linux-kernel",
