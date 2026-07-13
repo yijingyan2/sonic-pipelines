@@ -189,10 +189,6 @@ jobs:
         repos="${{ parameters.repos }}"
         release_owners=$(cat azure-pipelines/release-owners_github_account.json)
         for repo in $repos $(EXTRA_REPOS); do
-          if [[ $repo == "sonic-net/sonic-mgmt" ]]; then
-            # For sonic-mgmt repo, it has its own github workflow
-            continue
-          fi
           echo ======== working for $repo ========
           echo "=======Results for $repo======" >> label_scan.log
           prs=$(gh pr list -R $repo --state merged -L 200 --json url,labels,mergedAt,author,comments | jq -c --arg one_week_ago "$one_week_ago" '[.[] | select(.mergedAt >= $one_week_ago and ((.author.login // "") != "mssonicbld"))]')
@@ -225,7 +221,9 @@ jobs:
                 if echo "$comments" | jq -e --arg base_branch "$base_branch" '.[]? | select(((.author.login // "") != "mssonicbld") and ((.body // "") | test("already in " + $base_branch; "i")))' > /dev/null; then
                    comment_pr "$url" "The change is already in $base_branch. Removing cherry pick conflict label and adding included label."
                    gh pr edit "$url" --remove-label "Cherry Pick Conflict_$base_branch"
-                   gh pr edit "$url" --add-label "Included in $base_branch Branch"
+                   # Use the casing of whatever "Included in" label already exists in this repo
+                   included_label=$(gh label list -R $repo --json name -q '.[]?.name' | grep -iE "^Included in $base_branch [Bb]ranch$" | head -n1 || echo "Included in $base_branch Branch")
+                   gh pr edit "$url" --add-label "$included_label"
                    echo "Removed cherry pick conflict label and added included label for $url" >> label_scan.log
                 fi
                 if ! echo "$comments" | jq -e '.[]? | select(((.author.login // "") == "mssonicbld") and ((.body // "") | test("please manually create the cherry pick PR"; "i")))' > /dev/null; then
