@@ -60,7 +60,7 @@ check_conflict(){
     fi
     if [ -n "$contains_submodule" ]; then
         echo "PR contains submodule change"
-        gh pr comment $PR_URL --body "Auto cherry pick don't support submodule update. Please manually cherry pick!"
+        gh pr comment $PR_URL --body "Auto cherry pick doesn't support submodule update. Please manually cherry pick!"
         return 251
     fi
     content=$(gh pr view $PR_URL --json title,body)
@@ -111,6 +111,16 @@ labeled(){
         echo $ACTION_LABEL | grep msft- || return 0
     fi
     if echo $ACTION_LABEL | grep -E '^Approved for (msft-)?[0-9]{6} Branch$'; then
+        release_owner_key=$(echo $ACTION_LABEL | grep -Eo "[0-9]{6}")
+        release_team="release-manager-$release_owner_key"
+        if gh api "orgs/$ORG/teams/$release_team" &>/dev/null; then
+            if ! gh api "orgs/$ORG/teams/$release_team/memberships/$ACTION_SENDER" --jq '.state' 2>/dev/null | grep -q "^active$"; then
+                gh pr edit $PR_URL --remove-label "$ACTION_LABEL"
+                members=$(gh api "orgs/$ORG/teams/$release_team/members" --jq '.[].login' 2>/dev/null | sed 's/^/@/' | tr '\n' ' ')
+                gh pr comment $PR_URL --body "The label \`$ACTION_LABEL\` can only be added by a member of the @${ORG}/${release_team} team. Removing the label. Please contact one of the release managers: ${members}to approve the cherry pick."
+                return 0
+            fi
+        fi
         create_pr "$ACTION_LABEL"
         return $?
     fi
