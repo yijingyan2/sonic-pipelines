@@ -191,7 +191,7 @@ jobs:
         for repo in $repos $(EXTRA_REPOS); do
           echo ======== working for $repo ========
           echo "=======Results for $repo======" >> label_scan.log
-          prs=$(gh pr list -R $repo --state merged -L 200 --json url,labels,mergedAt,author,comments | jq -c --arg one_week_ago "$one_week_ago" '[.[] | select(.mergedAt >= $one_week_ago and ((.author.login // "") != "mssonicbld"))]')
+          prs=$(gh pr list -R $repo --state merged -L 200 --json url,labels,mergedAt,updatedAt,author,comments | jq -c --arg one_week_ago "$one_week_ago" '[.[] | select(.updatedAt >= $one_week_ago and ((.author.login // "") != "mssonicbld"))]')
           c=$(echo "$prs" | jq length)
           for ((i=0; i<$c; i++)); do
             pr=$(echo "$prs" | jq .[$i])
