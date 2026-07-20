@@ -34,16 +34,34 @@ check_conflict(){
         newpr_base="$ORG/$REPO"
     fi
     git remote update
+    git fetch head $PR_BASE_BRANCH --depth=100
     git status
     git checkout -b $PR_BASE_BRANCH --track head/$PR_BASE_BRANCH
     git status
+    contains_submodule=""
     if [[ "$PR_MERGED" == "true" ]];then
-        git reset $PR_COMMIT_SHA --hard
+        # PR_COMMIT_SHA from the webhook (merge_commit_sha) is GitHub's ephemeral
+        # test-merge object, which is deleted after a squash merge. Fetch the real
+        # post-merge commit from the GitHub API instead.
+        REAL_SHA=$(gh api repos/$ORG/$REPO/pulls/$PR_NUMBER --jq .merge_commit_sha)
+        git fetch head $REAL_SHA
+        git reset $REAL_SHA --hard
+        if git show HEAD | grep -Eo "^\+Subproject commit "; then
+            contains_submodule="true"
+        fi
         git reset HEAD~
         git add . -f
     else
         git fetch head +refs/pull/$PR_NUMBER/merge:refs/remotes/pull/$PR_NUMBER/merge
+        if git log head/$PR_BASE_BRANCH..$PR_COMMIT_SHA -p | grep -Eo "^\+Subproject commit "; then
+            contains_submodule="true"
+        fi
         git merge pull/$PR_NUMBER/merge --squash || { echo "PR is Out of Date!"; return 253; }
+    fi
+    if [ -n "$contains_submodule" ]; then
+        echo "PR contains submodule change"
+        gh pr comment $PR_URL --body "Auto cherry pick doesn't support submodule update. Please manually cherry pick!"
+        return 251
     fi
     content=$(gh pr view $PR_URL --json title,body)
     title=$(echo "$content" | jq .title -r)
@@ -93,6 +111,16 @@ labeled(){
         echo $ACTION_LABEL | grep msft- || return 0
     fi
     if echo $ACTION_LABEL | grep -E '^Approved for (msft-)?[0-9]{6} Branch$'; then
+        release_owner_key=$(echo $ACTION_LABEL | grep -Eo "[0-9]{6}")
+        release_team="release-manager-$release_owner_key"
+        if gh api "orgs/$ORG/teams/$release_team" &>/dev/null; then
+            if ! gh api "orgs/$ORG/teams/$release_team/memberships/$ACTION_SENDER" --jq '.state' 2>/dev/null | grep -q "^active$"; then
+                gh pr edit $PR_URL --remove-label "$ACTION_LABEL"
+                members=$(gh api "orgs/$ORG/teams/$release_team/members" --jq '.[].login' 2>/dev/null | sed 's/^/@/' | tr '\n' ' ')
+                gh pr comment $PR_URL --body "The label \`$ACTION_LABEL\` can only be added by a member of the @${ORG}/${release_team} team. Removing the label. Please contact one of the release managers: ${members}to approve the cherry pick."
+                return 0
+            fi
+        fi
         create_pr "$ACTION_LABEL"
         return $?
     fi
