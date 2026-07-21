@@ -6,7 +6,7 @@ trigger: none
 pr: none
 
 schedules:
-- cron: "11 11 * * *"
+- cron: "11 */6 * * *"
   branches:
     include:
     - main
@@ -110,24 +110,99 @@ jobs:
                 if echo "$request_labels_created_by_bot" | grep -qiFx "$label"; then
                   labels_to_remove="${labels_to_remove:+$labels_to_remove,}$label"
                   branches_to_remove="${branches_to_remove:+$branches_to_remove,}$branch"
+                  tested_label="Tested for $branch Branch"
+                  if echo "$labels" | grep -qiF "$tested_label"; then
+                    labels_to_remove="${labels_to_remove:+$labels_to_remove,}$tested_label"
+                  fi
                 fi
               fi
             done
             if [[ -n "$labels_to_remove" ]]; then
               if gh pr edit "$url" --remove-label "$labels_to_remove"; then
+                while IFS= read -r removed_label; do
+                  [[ -z "$removed_label" ]] && continue
+                  labels=$(echo "$labels" | grep -vFx "$removed_label" || true)
+                done <<< "$(echo "$labels_to_remove" | tr ',' '\n')"
                 comment_pr "$url" "The backport request for branch(es) $branches_to_remove has been removed from PR description. Removed label(s)...."
                 echo "Removed labels for branch(es) $labels_to_remove for $url" >> cherry_pick_scan.log
               else
                 echo "Failed to remove label(s) for branch(es) $branches_to_remove for $url" >> cherry_pick_scan.log
               fi
             fi
+            # Check Tested branch and Test result sections for PRs with backport request labels
+            current_request_labels=$(echo "$labels" | grep -P 'Request for (?:msft-)?\d{6} Branch' || true)
+            if [[ -n "$current_request_labels" ]]; then
+              tested_section=$(echo "$body_no_comments" | awk 'tolower($0) ~ /^#{3,}.*tested branch/{found=1; next} found && /^#{3,}/{exit} found{print}')
+              tested_branches_checked=$(echo "$tested_section" | grep -oiP '^\s*-\s*\[[xX]\]\s*\K\S+' | grep -viF 'N/A' || true)
+              test_result_section=$(echo "$body_no_comments" | awk 'tolower($0) ~ /^#{3,}.*test result/{found=1; next} found && /^#{3,}/{exit} found{print}')
+              test_result_content=$(echo "$test_result_section" | sed '/^\s*$/d' || true)
+              labels_to_add_tested=""
+              labels_to_remove_tested=""
+              missing_tested_for=""
+              while IFS= read -r req_label; do
+                [[ -z "$req_label" ]] && continue
+                branch=$(echo "$req_label" | grep -oP '(?<=Request for )(?:msft-)?\d{6}(?= Branch)')
+                raw_branch=${branch#msft-}
+                tested_label="Tested for $branch Branch"
+                if echo "$labels" | grep -qiF "$tested_label"; then
+                  if ! (echo "$tested_branches_checked" | grep -qiF "$raw_branch" && echo "$test_result_content" | grep -qF "$raw_branch"); then
+                    labels_to_remove_tested="${labels_to_remove_tested:+$labels_to_remove_tested,}$tested_label"
+                  fi
+                  continue
+                fi
+                if echo "$tested_branches_checked" | grep -qiF "$raw_branch" && echo "$test_result_content" | grep -qF "$raw_branch"; then
+                  labels_to_add_tested="${labels_to_add_tested:+$labels_to_add_tested,}$tested_label"
+                else
+                  missing_tested_for="${missing_tested_for:+$missing_tested_for,}$branch"
+                fi
+              done <<< "$current_request_labels"
+              if [[ -n "$labels_to_add_tested" ]]; then
+                if gh pr edit "$url" --add-label "$labels_to_add_tested"; then
+                  labels_added=$(echo "$labels_to_add_tested" | tr ',' '\n')
+                  labels=$(printf "%s\n%s\n" "$labels" "$labels_added" | sed '/^$/d' | sort -fu)
+                  tested_branches_list=$(echo "$labels_to_add_tested" | grep -oP '(?<=Tested for )(?:msft-)?\d{6}(?= Branch)' | paste -sd ',' -)
+                  comment_pr "$url" "The **Tested branch** section has been ticked and **Test result** is provided for branch(es): $tested_branches_list. Added label(s): $labels_to_add_tested."
+                  echo "Added tested label(s) for $url: $labels_to_add_tested" >> cherry_pick_scan.log
+                else
+                  comment_pr "$url" "@yijingyan2 @lunyue-ms Failed to add tested label(s): $labels_to_add_tested. The label(s) may not exist. Please check manually."
+                  echo "Failed to add tested label(s) for $url: $labels_to_add_tested" >> cherry_pick_scan.log
+                fi
+              fi
+              if [[ -n "$labels_to_remove_tested" ]]; then
+                if gh pr edit "$url" --remove-label "$labels_to_remove_tested"; then
+                  removed_tested_branches=$(echo "$labels_to_remove_tested" | grep -oP '(?<=Tested for )(?:msft-)?\d{6}(?= Branch)' | paste -sd ',' -)
+                  comment_pr "$url" "The **Tested branch** tick or **Test result** has been removed for branch(es): $removed_tested_branches. Removed label(s): $labels_to_remove_tested."
+                  echo "Removed tested label(s) for $url: $labels_to_remove_tested" >> cherry_pick_scan.log
+                else
+                  echo "Failed to remove tested label(s) for $url: $labels_to_remove_tested" >> cherry_pick_scan.log
+                fi
+              fi
+              if [[ -n "$missing_tested_for" ]]; then
+                existing_missing_comment_bodies=$(gh api "repos/$repo/issues/$pr_number/comments" --jq '[.[] | select(.user.login == "mssonicbld" and (.body | test("missing required test information"; "i"))) | .body] | join("\n")' 2>/dev/null || echo "")
+                uncovered_branches=""
+                while IFS= read -r mb; do
+                  [[ -z "$mb" ]] && continue
+                  raw_mb=${mb#msft-}
+                  if ! echo "$existing_missing_comment_bodies" | grep -qF "$raw_mb"; then
+                    uncovered_branches="${uncovered_branches:+$uncovered_branches,}$mb"
+                  fi
+                done <<< "$(echo "$missing_tested_for" | tr ',' '\n')"
+                if [[ -n "$uncovered_branches" ]]; then
+                  first_branch=$(echo "$uncovered_branches" | cut -d',' -f1)
+                  raw_first_branch=${first_branch#msft-}
+                  missing_msg="This PR has backport request label(s) for branch(es): $uncovered_branches, but is missing required test information. Please make sure you tick the tested branch(es) in the **Tested branch** section and provide test evidence (e.g., $raw_first_branch: &lt;test result&gt;) in the **Test result** section as well in your PR description."
+                  comment_pr "$url" "$missing_msg"
+                  echo "Left comment about missing test info for $url" >> cherry_pick_scan.log
+                fi
+              fi
+            fi
           done
         done
-      displayName: cherry pick scanning
+      displayName: PR description scanning
     - script: |
         set -ex
         [ -f cherry_pick_scan.log ] && cat cherry_pick_scan.log
-      displayName: show cherry pick scanning result
+      displayName: show PR description scanning result
       condition: always()
     - script: |
         set -ex
