@@ -134,7 +134,7 @@ jobs:
               fi
             fi
             # Check Tested branch and Test result sections for PRs with backport request labels
-            current_request_labels=$(echo "$labels" | grep -P 'Request for (?:msft-)?\d{6} Branch' || true)
+            current_request_labels=$(echo "$labels" | grep -iP 'Request for (?:msft-)?\d{6} Branch' || true)
             if [[ -n "$current_request_labels" ]]; then
               tested_section=$(echo "$body_no_comments" | awk 'tolower($0) ~ /^#{3,}.*tested branch/{found=1; next} found && /^#{3,}/{exit} found{print}')
               tested_branches_checked=$(echo "$tested_section" | grep -oiP '^\s*-\s*\[[xX]\]\s*\K\S+' | grep -viF 'N/A' || true)
