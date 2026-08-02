@@ -64,7 +64,7 @@ jobs:
             --reason schedule \
             --status completed \
             --query-order QueueTimeDesc \
-            --top 10000 \
+            --top 200 \
             --output json > "$runs_file"
           scan_args+=(--branch-runs "$branch" "$runs_file")
           ((index += 1))

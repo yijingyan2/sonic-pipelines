@@ -143,7 +143,10 @@ def main():
       '##vso[task.logissue type=error]Scheduled runs failed on consecutive '
       f'days from {first_day} through {last_day}: {pipeline_name} ({branch})'
     )
-    branch_owner = branch_owners.get(branch, {})
+    branch_owner = (
+      {} if normalize_branch(branch) == 'refs/heads/master'
+      else branch_owners.get(branch, {})
+    )
     pipeline_owner_name, pipeline_owner_email = owner_details(
       pipeline, ('lunyue@microsoft.com', 'yijingyan@microsoft.com')
     )
