@@ -165,7 +165,7 @@ def main():
       'pipeline_owner_name': pipeline_owner_name,
       'pipeline_owner_email': pipeline_owner_email,
       'branch_owner_suffix': (
-        'for viz: ' if branch_owner_email else ''
+        'for viz' if branch_owner_email else ''
       ),
       'branch_owner_name': branch_owner_name,
       'branch_owner_email': branch_owner_email,
@@ -173,13 +173,13 @@ def main():
     }
     print('Notification payload:')
     print(json.dumps(payload, indent=2, sort_keys=True))
-    # try:
-    #   send_notification(args.notification_url, args.thumbprint, payload)
-    # except Exception as error:
-    #   print(
-    #     '##vso[task.logissue type=error]Failed to send notification for '
-    #     f'{pipeline_name} ({branch}): {error}'
-    #   )
+    try:
+      send_notification(args.notification_url, args.thumbprint, payload)
+    except Exception as error:
+      print(
+        '##vso[task.logissue type=error]Failed to send notification for '
+        f'{pipeline_name} ({branch}): {error}'
+      )
 
   checked = len(pipelines) * len(branch_runs)
   print(
