@@ -1,59 +1,76 @@
 {
   "202405": {
+    "ownerName": "Bing Wang",
+    "ownerEmail": "Wang.Bing@microsoft.com",
     "githubAccount": "bingwang-ms"
   },
   "202411": {
+    "ownerName": "Kumaresh Perumal",
     "ownerEmail": "kperumal@microsoft.com",
     "githubAccount": "kperumalbfn"
   },
   "202412": {
+    "ownerName": "Riff Jiang",
+    "ownerEmail": "riffjiang@microsoft.com",
     "githubAccount": "r12f"
   },
-  "202503": {
-    "githubAccount": "arlakshm"
-  },
   "202505": {
+    "ownerName": "Jianquan Ye",
     "ownerEmail": "jianquanye@microsoft.com",
     "githubAccount": "yejianquan"
   },
   "202506": {
+    "ownerName": "Prabhat Aravind",
+    "ownerEmail": "paravind@microsoft.com",
     "githubAccount": "prabhataravind"
   },
   "202509": {
+    "ownerName": "Zhijian Li",
+    "ownerEmail": "zhijianli@microsoft.com",
     "githubAccount": "lizhijianrd"
   },
   "202511": {
+    "ownerName": "Vineet Mittal",
     "ownerEmail": "vineetmittal@microsoft.com",
     "githubAccount": "vmittal-msft"
   },
   "202511_azd": {
+    "ownerName": "Weiming Xu",
+    "ownerEmail": "weiming.xu@microsoft.com",
     "githubAccount": "weimingx"
   },
   "202512": {
+    "ownerName": "Bing Wang",
     "ownerEmail": "Wang.Bing@microsoft.com",
     "githubAccount": "bingwang-ms"
   },
   "202601": {
+    "ownerName": "Rita Hui",
     "ownerEmail": "ritahui@microsoft.com",
     "githubAccount": "rlhui"
   },
   "202603": {
+    "ownerName": "Zhijian Li",
     "ownerEmail": "zhijianli@microsoft.com",
     "githubAccount": "lizhijianrd"
   },
   "202605": {
+    "ownerName": "Vaibhav Hemant Dixit",
     "ownerEmail": "vaibhav.dixit@microsoft.com",
     "githubAccount": "vaibhavhd"
   },
   "202606": {
+    "ownerName": "Tamer Ahmed",
     "ownerEmail": "tamerahmed@microsoft.com",
     "githubAccount": "tahmed-dev"
   },
   "202607": {
+    "ownerName": "Riff Jiang",
     "ownerEmail": "riffjiang@microsoft.com",
     "githubAccount": "r12f"
   },
   "202608": {
+    "ownerName": "Ying Xie",
     "ownerEmail": "yinxi@microsoft.com",
     "githubAccount": "yxieca"
   }

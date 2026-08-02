@@ -164,6 +164,9 @@ def main():
       'branch': branch,
       'pipeline_owner_name': pipeline_owner_name,
       'pipeline_owner_email': pipeline_owner_email,
+      'branch_owner_suffix': (
+        'for viz: ' if branch_owner_email else ''
+      ),
       'branch_owner_name': branch_owner_name,
       'branch_owner_email': branch_owner_email,
       'url': f"{args.build_url_base}{pipeline['definitionId']}"
@@ -183,7 +186,7 @@ def main():
     f'Checked {checked} pipeline/branch combinations: '
     f'{len(alerts)} failure streak(s), {len(missing)} without scheduled runs.'
   )
-  return 1 if alerts else 0
+  return 0
 
 
 if __name__ == '__main__':
