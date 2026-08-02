@@ -1,0 +1,182 @@
+[
+	{
+		"name": "Azure.sonic-bmp",
+		"definitionId": 1565
+	},
+	{
+		"name": "Azure.sonic-buildimage.common_libs",
+		"definitionId": 465
+	},
+	{
+		"name": "Azure.sonic-buildimage.official.alpinevs",
+		"definitionId": 3412
+	},
+	{
+		"name": "Azure.sonic-buildimage.official.aspeed-arm64",
+		"definitionId": 3372
+	},
+	{
+		"name": "Azure.sonic-buildimage.official.broadcom",
+		"definitionId": 138
+	},
+	{
+		"name": "Azure.sonic-buildimage.official.marvell-prestera-arm64",
+		"definitionId": 999
+	},
+	{
+		"name": "Azure.sonic-buildimage.official.marvell-prestera-armhf",
+		"definitionId": 141
+	},
+	{
+		"name": "Azure.sonic-buildimage.official.mellanox",
+		"definitionId": 139
+	},
+	{
+		"name": "Azure.sonic-buildimage.official.nvidia-bluefield",
+		"definitionId": 1665
+	},
+	{
+		"name": "Azure.sonic-buildimage.official.vs",
+		"definitionId": 142
+	},
+	{
+		"name": "Azure.sonic-dash-ha",
+		"definitionId": 2351,
+		"ownerName": "Jing Zhang",
+		"ownerEmail": "zhangjing@microsoft.com"
+	},
+	{
+		"name": "Azure.sonic-dbsyncd",
+		"definitionId": 110,
+        "ownerName": "Storm Liang",
+        "ownerEmail": "stormliang@microsoft.com"
+	},
+	{
+		"name": "Azure.sonic-linkmgrd",
+		"definitionId": 388,
+        "ownerName": "Jing Zhang",
+		"ownerEmail": "zhangjing@microsoft.com"
+	},
+	{
+		"name": "Azure.sonic-linux-kernel",
+		"definitionId": 13,
+        "ownerName": "Saikrishna Arcot",
+        "ownerEmail": "sarcot@microsoft.com"
+	},
+	{
+		"name": "Azure.sonic-mgmt-common",
+		"definitionId": 127
+	},
+	{
+		"name": "Azure.sonic-mgmt-framework",
+		"definitionId": 130
+	},
+	{
+		"name": "Azure.sonic-platform-common",
+		"definitionId": 42,
+        "ownerName": "Prince George",
+        "ownerEmail": "Prince.George@microsoft.com"
+
+	},
+	{
+		"name": "Azure.sonic-platform-daemons",
+		"definitionId": 41,
+        "ownerName": "Prince George",
+        "ownerEmail": "Prince.George@microsoft.com"
+	},
+	{
+		"name": "Azure.sonic-py-swsssdk",
+		"definitionId": 87
+	},
+	{
+		"name": "Azure.sonic-redfish",
+		"definitionId": 3419,
+        "ownerName": "Judy Joseph",
+        "ownerEmail": "Judy.Joseph@microsoft.com"
+	},
+	{
+		"name": "Azure.sonic-restapi",
+		"definitionId": 343,
+        "ownerName": "Lawrence Lee",
+        "ownerEmail": "Lee.Lawrence@microsoft.com"
+	},
+	{
+		"name": "Azure.sonic-sairedis",
+		"definitionId": 12,
+        "ownerName": "Saikrishna Arcot",
+        "ownerEmail": "sarcot@microsoft.com"
+	},
+	{
+		"name": "Azure.sonic-snmpagent",
+		"definitionId": 106
+
+	},
+	{
+		"name": "Azure.sonic-stp",
+		"definitionId": 84
+	},
+	{
+		"name": "Azure.sonic-swss",
+		"definitionId": 15,
+        "ownerName": "Prince Sunny",
+        "ownerEmail": "Prince.Sunny@microsoft.com"
+	},
+	{
+		"name": "Azure.sonic-swss-common",
+		"definitionId": 9,
+        "ownerName": "Qi Luo",
+        "ownerEmail": "qiluo@microsoft.com"
+	},
+	{
+		"name": "Azure.sonic-utilities",
+		"definitionId": 55,
+        "ownerName": "Qi Luo",
+        "ownerEmail": "qiluo@microsoft.com"
+	},
+	{
+		"name": "Azure.sonic-wpa-supplicant",
+		"definitionId": 5,
+        "ownerName": "Ze Gan",
+        "ownerEmail": "Ze.Gan@microsoft.com"
+	},
+	{
+		"name": "Azure.sonic-ztp",
+		"definitionId": 134
+	},
+	{
+		"name": "sonic-net.sonic-buildimage.official.vpp",
+		"definitionId": 2818
+	},
+	{
+		"name": "sonic-net.sonic-dash-api",
+		"definitionId": 1318,
+        "ownerName": "Ze Gan",
+        "ownerEmail": "Ze.Gan@microsoft.com"
+	},
+	{
+		"name": "sonic-net.sonic-dhcp-relay",
+		"definitionId": 487,
+        "ownerName": "Kumaresh Perumal",
+        "ownerEmail": "kperumal@microsoft.com"
+	},
+	{
+		"name": "sonic-net.sonic-dhcpmon",
+		"definitionId": 901
+	},
+	{
+		"name": "sonic-net.sonic-gnmi",
+		"definitionId": 934,
+        "ownerName": "Qi Luo",
+        "ownerEmail": "qiluo@microsoft.com"
+	},
+	{
+		"name": "sonic-net.sonic-host-services",
+		"definitionId": 935,
+        "ownerName": "Qi Luo",
+        "ownerEmail": "qiluo@microsoft.com"
+	},
+	{
+		"name": "sonic-net.sonic-platform-vpp",
+		"definitionId": 1016
+	}
+]

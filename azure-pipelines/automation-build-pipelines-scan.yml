@@ -1,0 +1,86 @@
+trigger: none
+pr: none
+
+parameters:
+- name: targetProject
+  type: string
+  default: build
+
+variables:
+  - group: sonicbld
+
+jobs:
+- job: scan
+  displayName: Scan scheduled pipeline runs
+  pool: sonic-ubuntu-1c
+  timeoutInMinutes: 30
+  steps:
+  - checkout: self
+  - bash: |
+      set -e
+      command -v az >/dev/null || curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+    displayName: Install Azure CLI
+  - task: AzureCLI@2
+    displayName: Check scheduled runs
+    env:
+      CERT: $(cert-noti)
+      SCAN_BRANCHES: $(SCAN_BRANCHES)
+    inputs:
+      azureSubscription: mssonic-automation-umi
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        set -euo pipefail
+
+        az extension add --name azure-devops --yes
+        AZURE_DEVOPS_EXT_PAT=$(az account get-access-token \
+          --resource 499b84ac-1321-427f-aa17-267ca6975798 \
+          --query accessToken -o tsv)
+        export AZURE_DEVOPS_EXT_PAT
+
+        echo $CERT | base64 -d > cert.pfx
+        thumbprint=$(openssl pkcs12 -in cert.pfx -nokeys -nodes -passin pass: | openssl x509 -noout -fingerprint -sha1 | sed 's/^.*=//' | tr -d ':' | tr 'A-Z' 'a-z')
+
+        mapfile -t pipeline_ids < <(
+          jq -r '.[].definitionId' azure-pipelines/build-pipelines.json
+        )
+        if (( ${#pipeline_ids[@]} == 0 )); then
+          echo 'No pipeline definitions found in build-pipelines.json.'
+          exit 1
+        fi
+
+        scan_args=()
+        index=0
+        while IFS= read -r branch; do
+          branch_ref="$branch"
+          [[ "$branch_ref" == refs/* ]] || branch_ref="refs/heads/$branch_ref"
+          runs_file="$(Agent.TempDirectory)/scheduled-runs-$index.json"
+          echo "Querying scheduled runs for $branch_ref"
+          az pipelines runs list \
+            --organization "$(System.CollectionUri)" \
+            --project '${{ parameters.targetProject }}' \
+            --pipeline-ids "${pipeline_ids[@]}" \
+            --branch "$branch_ref" \
+            --reason schedule \
+            --status completed \
+            --query-order QueueTimeDesc \
+            --top 10000 \
+            --output json > "$runs_file"
+          scan_args+=(--branch-runs "$branch" "$runs_file")
+          ((index += 1))
+        done < <(tr ', ' '\n\n' <<< "$SCAN_BRANCHES" | sed '/^$/d')
+
+        if (( index == 0 )); then
+          echo 'The branches pipeline variable must contain at least one branch.'
+          exit 1
+        fi
+
+        python3 azure-pipelines/scripts/scan-scheduled-runs.py \
+          --pipelines azure-pipelines/build-pipelines.json \
+          --branch-owners azure-pipelines/release-branch-owners.json \
+          --lookback-days 3 \
+          --minimum-failed-days 3 \
+          --notification-url "https://notice-center.azurewebsites.net/noti_center/notice" \
+          --thumbprint "$thumbprint" \
+          --build-url-base "$(System.CollectionUri)${{ parameters.targetProject }}/_build?definitionId=" \
+          "${scan_args[@]}"

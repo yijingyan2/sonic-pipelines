@@ -54,7 +54,7 @@ jobs:
           gh pr comment "$pr_url" --body "$full_body"
         }
         repos="${{ parameters.repos }}"
-        release_owners=$(cat azure-pipelines/release-owners_github_account.json)
+        branch_owners=$(cat azure-pipelines/release-branch-owners.json)
         rm -rf failure_prs.log skip_prs.log
         rc=0
           for repo in $repos $(EXTRA_REPOS); do
@@ -134,7 +134,7 @@ jobs:
                   author=$(echo $origin_pr_detail | jq .author.login -r)
                   origin_comments=$(echo $origin_pr_detail | jq .comments)
                   release_owner_key=$(echo "$base_ref" | sed -E 's/^msft-//' | grep -Eo '[0-9]{6}' | head -n1 || true)
-                  release_owner=$(echo "$release_owners" | jq -r --arg release_owner_key "$release_owner_key" '.[$release_owner_key] // empty')
+                  release_owner=$(echo "$branch_owners" | jq -r --arg release_owner_key "$release_owner_key" '.[$release_owner_key].githubAccount // empty')
                   if ! echo "$origin_comments" | jq -e '.[]? | select(((.author.login // "") == "mssonicbld") and ((.body // "") | test("cherry pick PR didn.t pass PR checker after retry"; "i")))' > /dev/null; then
                     [[ $created_at > $date_15d_ago ]] && comment_pr "$origin_pr_url" "@$author cherry pick PR didn't pass PR checker after retry. Please help check! Thanks.<br>$url"
                     [[ $created_at > $date_15d_ago ]] && comment_pr "$url" "@$release_owner The cherry pick PR didn't pass PR checker after retry. Left a comment in original PR $origin_pr_url to notify author."
@@ -187,7 +187,7 @@ jobs:
           gh pr comment "$pr_url" --body "$full_body"
         }
         repos="${{ parameters.repos }}"
-        release_owners=$(cat azure-pipelines/release-owners_github_account.json)
+        branch_owners=$(cat azure-pipelines/release-branch-owners.json)
         for repo in $repos $(EXTRA_REPOS); do
           echo ======== working for $repo ========
           echo "=======Results for $repo======" >> label_scan.log
@@ -263,7 +263,7 @@ jobs:
               if ! echo "$comments" | jq -e '.[]? | select(((.author.login // "") == "mssonicbld") and ((.body // "") | test("please manually create the cherry pick PR"; "i")))' > /dev/null; then
                 if ! echo "$comments" | jq -e --arg base_branch "$base_branch" '.[]? | select(((.author.login // "") != "mssonicbld") and ((.body // "") | test("already in " + $base_branch; "i")))' > /dev/null; then
                   release_owner_key=$(echo "$base_branch" | sed -E 's/^msft-//' | grep -Eo '[0-9]{6}' | head -n1 || true)
-                  release_owner=$(echo "$release_owners" | jq -r --arg release_owner_key "$release_owner_key" '.[$release_owner_key] // empty')
+                  release_owner=$(echo "$branch_owners" | jq -r --arg release_owner_key "$release_owner_key" '.[$release_owner_key].githubAccount // empty')
                   comment_pr "$url" "The change is not in $base_branch yet. @$author, please manually create the cherry pick PR for branch $base_branch.<br>You can ping the release branch owner(github account: $release_owner) to approve your cherry pick PR.<br>If this change is already in $base_branch, please comment \"already in $base_branch\". Thanks!"
                   echo "Commented to let author manually create cherry pick PR and ask release owner for approval for $url" >> label_scan.log
                 fi
