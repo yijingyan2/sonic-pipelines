@@ -42,7 +42,7 @@ jobs:
         thumbprint=$(openssl pkcs12 -in cert.pfx -nokeys -nodes -passin pass: | openssl x509 -noout -fingerprint -sha1 | sed 's/^.*=//' | tr -d ':' | tr 'A-Z' 'a-z')
 
         mapfile -t pipeline_ids < <(
-          jq -r '.[].definitionId' azure-pipelines/build-pipelines.json
+          python3 -c 'import json; print(*[pipeline["definitionId"] for pipeline in json.load(open("azure-pipelines/build-pipelines.json"))], sep="\n")'
         )
         if (( ${#pipeline_ids[@]} == 0 )); then
           echo 'No pipeline definitions found in build-pipelines.json.'
