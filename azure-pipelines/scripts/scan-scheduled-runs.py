@@ -35,7 +35,7 @@ def failed_streaks(runs_by_day, minimum_days):
   return streaks
 
 
-def scan(pipelines, branch_runs, cutoff, minimum_days):
+def scan(pipelines, branch_runs, window_start, window_end, minimum_days):
   pipelines_by_id = {
     pipeline['definitionId']: pipeline for pipeline in pipelines
   }
@@ -48,15 +48,17 @@ def scan(pipelines, branch_runs, cutoff, minimum_days):
     for run in runs:
       definition_id = run.get('definition', {}).get('id')
       timestamp = run.get('queueTime') or run.get('startTime')
+      run_time = parse_timestamp(timestamp) if timestamp else None
       if (
         definition_id not in pipelines_by_id
         or run.get('reason', '').lower() != 'schedule'
         or run.get('sourceBranch') != normalized_branch
-        or not timestamp
-        or parse_timestamp(timestamp) < cutoff
+        or not run_time
+        or run_time < window_start
+        or run_time >= window_end
       ):
         continue
-      day = parse_timestamp(timestamp).date()
+      day = run_time.date()
       runs_by_pipeline[definition_id].setdefault(day, []).append(
         run.get('result', '').lower()
       )
@@ -119,9 +121,13 @@ def main():
     parser.error('lookback days must be at least the positive minimum failed days')
 
   today = datetime.datetime.now(datetime.timezone.utc).date()
-  first_day = today - datetime.timedelta(days=args.lookback_days - 1)
-  cutoff = datetime.datetime.combine(
+  first_day = today - datetime.timedelta(days=args.lookback_days)
+  last_day = today - datetime.timedelta(days=1)
+  window_start = datetime.datetime.combine(
     first_day, datetime.time.min, tzinfo=datetime.timezone.utc
+  )
+  window_end = datetime.datetime.combine(
+    today, datetime.time.min, tzinfo=datetime.timezone.utc
   )
   pipelines = load_json(args.pipelines)
   branch_owners = load_json(args.branch_owners)
@@ -129,19 +135,20 @@ def main():
     (branch, load_json(runs_path)) for branch, runs_path in args.branch_runs
   ]
   alerts, missing = scan(
-    pipelines, branch_runs, cutoff, args.minimum_failed_days
+    pipelines, branch_runs, window_start, window_end, args.minimum_failed_days
   )
 
   for pipeline_name, branch in missing:
     print(
-      '##vso[task.logissue type=warning]No scheduled runs in the last '
-      f'{args.lookback_days} days: {pipeline_name} ({branch})'
+      '##vso[task.logissue type=warning]No scheduled runs from '
+      f'{first_day} through {last_day}: {pipeline_name} ({branch})'
     )
-  for pipeline, branch, first_day, last_day in alerts:
+  for pipeline, branch, failure_start, failure_end in alerts:
     pipeline_name = pipeline['name']
     print(
       '##vso[task.logissue type=error]Scheduled runs failed on consecutive '
-      f'days from {first_day} through {last_day}: {pipeline_name} ({branch})'
+      f'days from {failure_start} through {failure_end}: '
+      f'{pipeline_name} ({branch})'
     )
     branch_owner = (
       {} if normalize_branch(branch) == 'refs/heads/master'
