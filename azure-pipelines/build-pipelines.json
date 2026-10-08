@@ -178,5 +178,9 @@
 	{
 		"name": "sonic-net.sonic-platform-vpp",
 		"definitionId": 1016
+	},
+	{
+		"name": "sonic-net.sonic-buildimage-ubuntu22.04",
+		"definitionId": 1055
 	}
 ]
