@@ -189,7 +189,7 @@ def main():
       )
     )
     payload = {
-      'name': 'persistent_pipeline_failure_test',
+      'name': 'persistent_pipeline_failure',
       'alert_id': f"{pipeline['definitionId']}-{branch}",
       'pipeline': pipeline_name,
       'branch': branch,
