@@ -19,8 +19,8 @@ def normalize_branch(branch):
 
 def failed_streaks(runs_by_day, minimum_days):
   failed_days = sorted(
-    day for day, results in runs_by_day.items()
-    if results and all(result == 'failed' for result in results)
+    day for day, runs in runs_by_day.items()
+    if runs and all(run.get('result', '').lower() == 'failed' for run in runs)
   )
   streaks = []
   current = []
@@ -59,9 +59,7 @@ def scan(pipelines, branch_runs, window_start, window_end, minimum_days):
       ):
         continue
       day = run_time.date()
-      runs_by_pipeline[definition_id].setdefault(day, []).append(
-        run.get('result', '').lower()
-      )
+      runs_by_pipeline[definition_id].setdefault(day, []).append(run)
 
     for definition_id, runs_by_day in runs_by_pipeline.items():
       pipeline = pipelines_by_id[definition_id]
@@ -70,7 +68,19 @@ def scan(pipelines, branch_runs, window_start, window_end, minimum_days):
         missing.append((pipeline_name, branch))
         continue
       for streak in failed_streaks(runs_by_day, minimum_days):
-        alerts.append((pipeline, branch, streak[0], streak[-1]))
+        example_run = max(
+          (
+            run
+            for day in streak
+            for run in runs_by_day[day]
+          ),
+          key=lambda run: parse_timestamp(
+            run.get('queueTime') or run.get('startTime')
+          )
+        )
+        alerts.append(
+          (pipeline, branch, streak[0], streak[-1], example_run)
+        )
 
   return alerts, missing
 
@@ -98,6 +108,20 @@ def owner_details(owner, excluded_emails=()):
   if not email or email.lower() in {value.lower() for value in excluded_emails}:
     return '', ''
   return owner.get('ownerName') or email, email
+
+
+def build_run_url(build_url_base, run):
+  web_url = run.get('_links', {}).get('web', {}).get('href')
+  if web_url:
+    return web_url
+
+  run_id = run.get('id')
+  if not run_id:
+    raise RuntimeError('Failed pipeline run has no web URL or build ID')
+  build_project_url = build_url_base.split('_build?', 1)[0]
+  return (
+    f'{build_project_url}_build/results?buildId={run_id}&view=results'
+  )
 
 
 def main():
@@ -143,7 +167,7 @@ def main():
       '##vso[task.logissue type=warning]No scheduled runs from '
       f'{first_day} through {last_day}: {pipeline_name} ({branch})'
     )
-  for pipeline, branch, failure_start, failure_end in alerts:
+  for pipeline, branch, failure_start, failure_end, example_run in alerts:
     pipeline_name = pipeline['name']
     print(
       '##vso[task.logissue type=error]Scheduled runs failed on consecutive '
@@ -165,7 +189,7 @@ def main():
       )
     )
     payload = {
-      'name': 'persistent_pipeline_failure',
+      'name': 'persistent_pipeline_failure_test',
       'alert_id': f"{pipeline['definitionId']}-{branch}",
       'pipeline': pipeline_name,
       'branch': branch,
@@ -176,17 +200,18 @@ def main():
       ),
       'branch_owner_name': branch_owner_name,
       'branch_owner_email': branch_owner_email,
-      'url': f"{args.build_url_base}{pipeline['definitionId']}"
+      'url': f"{args.build_url_base}{pipeline['definitionId']}",
+      'failed_run_url': build_run_url(args.build_url_base, example_run)
     }
     print('Notification payload:')
     print(json.dumps(payload, indent=2, sort_keys=True))
-    # try:
-    #   send_notification(args.notification_url, args.thumbprint, payload)
-    # except Exception as error:
-    #   print(
-    #     '##vso[task.logissue type=error]Failed to send notification for '
-    #     f'{pipeline_name} ({branch}): {error}'
-    #   )
+    try:
+      send_notification(args.notification_url, args.thumbprint, payload)
+    except Exception as error:
+      print(
+        '##vso[task.logissue type=error]Failed to send notification for '
+        f'{pipeline_name} ({branch}): {error}'
+      )
 
   checked = len(pipelines) * len(branch_runs)
   print(
