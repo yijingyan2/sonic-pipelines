@@ -84,13 +84,13 @@ class AsyncGitHubRepoSummary:
         Args:
             response: The HTTP response from GitHub API.
         """
-        # exponentiate the time at every request
+        now = datetime.now(timezone.utc).timestamp()
         if (
-            datetime.now(timezone.utc).timestamp() - self.expo_wait_last_update
-            > self.expo_wait_time_incr_wait
+            now - self.expo_wait_last_update > self.expo_wait_time_incr_wait
             and self.expo_wait_time < 3600
         ):
-            self.expo_wait_time <<= 1
+            self.expo_wait_time = min(self.expo_wait_time * 2, 3600)
+            self.expo_wait_last_update = now
             logger.warning(
                 f"Doubling the additional wait time to: {self.expo_wait_time}s"
             )
@@ -166,6 +166,9 @@ class AsyncGitHubRepoSummary:
                                 f"for {url} {params}"
                             )
                         self.expo_wait_time = 1
+                        self.expo_wait_last_update = datetime.now(
+                            timezone.utc
+                        ).timestamp()
                         return await response.json()
 
     async def github_id_lookup(self, github_id: int) -> Dict[str, Any]:

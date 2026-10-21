@@ -90,6 +90,18 @@ Pass the tokens as a comma-separated environment variable.
 env GITHUB_API_TOKENS = "github_pat_XXXXX,github_pat_YYYYY,github_pat_ZZZZZZ" codeowners-cli ....
 ```
 
+When GitHub rate-limits requests, workers wait for `Retry-After` or the
+`X-RateLimit-Reset` deadline plus an exponential backoff. The shared backoff
+doubles at most once per ten seconds, is capped at 3,600 seconds, and resets
+after a successful request. Concurrent worker warnings describe overlapping
+waits, not cumulative delays.
+
+Run the rate-limit regression tests from this directory:
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
 
 ## Running the CLI
 
